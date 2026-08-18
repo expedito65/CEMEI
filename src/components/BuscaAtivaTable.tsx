@@ -36,9 +36,9 @@ import {
   selectGoogleAccount, 
   initGoogleAuth, 
   logoutGoogle,
-  auth
+  GoogleUserProfile,
+  getCurrentUserProfile
 } from '../services/googleSheetsService';
-import { User } from 'firebase/auth';
 
 interface BuscaAtivaTableProps {
   registros: RegistroBuscaAtiva[];
@@ -68,7 +68,7 @@ export const BuscaAtivaTable: React.FC<BuscaAtivaTableProps> = ({
   const [exportSuccessResult, setExportSuccessResult] = useState<ExportResult | null>(null);
   const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
   const [copiadoLink, setCopiadoLink] = useState(false);
-  const [googleUser, setGoogleUser] = useState<User | null>(auth.currentUser);
+  const [googleUser, setGoogleUser] = useState<GoogleUserProfile | null>(getCurrentUserProfile());
 
   // Monitorar autenticação do Google
   useEffect(() => {
@@ -83,11 +83,11 @@ export const BuscaAtivaTable: React.FC<BuscaAtivaTableProps> = ({
     try {
       setIsSwitchingAccount(true);
       const res = await selectGoogleAccount();
-      setGoogleUser(res.user);
+      setGoogleUser(res.profile);
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+      if (err.message && !err.message.includes('cancelado')) {
         console.error('Erro ao alternar conta Google:', err);
-        alert('Não foi possível alterar a conta do Google.');
+        setExportErrorMessage(err.message || 'Não foi possível autenticar a conta do Google.');
       }
     } finally {
       setIsSwitchingAccount(false);
@@ -340,10 +340,10 @@ export const BuscaAtivaTable: React.FC<BuscaAtivaTableProps> = ({
             {/* Conta Google Conectada / Selecionador de Conta */}
             {googleUser ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
-                {googleUser.photoURL ? (
+                {googleUser.picture ? (
                   <img
-                    src={googleUser.photoURL}
-                    alt={googleUser.displayName || 'Google User'}
+                    src={googleUser.picture}
+                    alt={googleUser.name || 'Google User'}
                     className="w-4 h-4 rounded-full"
                     referrerPolicy="no-referrer"
                   />
