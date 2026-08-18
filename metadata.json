@@ -1,0 +1,6 @@
+{
+  "name": "Busca Ativa - CEMEI Maria de Lourdes",
+  "description": "Sistema de registro e acompanhamento de buscas ativas, turmas e alunos do CEMEI Maria de Lourdes em conformidade com as diretrizes da SEMED.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
