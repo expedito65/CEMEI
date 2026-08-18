@@ -190,8 +190,8 @@ export const INITIAL_ESCOLA_INFO: EscolaInfo = {
   semedOrgao: 'Secretaria Municipal de Educação - SEMED',
   inep: '31045892',
   anoLetivo: 2026,
-  diretora: 'Maria Aparecida de Souza',
-  pedagoga: 'Luciana Miranda da Silva',
+  diretora: '',
+  pedagoga: '',
   endereco: 'Rua Principal da Infância, nº 250 - Bairro das Flores',
   telefone: '(31) 3654-1234'
 };

@@ -89,12 +89,12 @@ export const RelatorioOficial: React.FC<RelatorioOficialProps> = ({
             <span className="font-bold text-slate-800">{escolaInfo.nome}</span>
           </div>
           <div>
-            <span className="text-slate-500 block font-medium">Direção / Coordenação:</span>
-            <span className="font-bold text-slate-800">{escolaInfo.diretora}</span>
+            <span className="text-slate-500 block font-medium">Direção Escolar:</span>
+            <span className="font-bold text-slate-800 text-slate-400 font-normal italic">—</span>
           </div>
           <div>
-            <span className="text-slate-500 block font-medium">Equipe Pedagógica:</span>
-            <span className="font-bold text-slate-800">{escolaInfo.pedagoga}</span>
+            <span className="text-slate-500 block font-medium">Supervisão Pedagógica:</span>
+            <span className="font-bold text-slate-800 text-slate-400 font-normal italic">—</span>
           </div>
           <div>
             <span className="text-slate-500 block font-medium">Data de Emissão:</span>
@@ -203,19 +203,21 @@ export const RelatorioOficial: React.FC<RelatorioOficialProps> = ({
             Certificamos que as ações de busca ativa, contatos com famílias, registros de frequência e notificações descritas neste documento foram devidamente apuradas e executadas pela equipe pedagógica do <strong>{escolaInfo.nome}</strong> em estreita observância às diretrizes e portarias vigentes da Secretaria Municipal de Educação (SEMED).
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4 text-center text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 pt-6 text-center text-xs">
             <div>
-              <div className="border-t border-slate-900 w-4/5 mx-auto pt-1.5 font-bold text-slate-900">
-                {escolaInfo.diretora}
+              <div className="border-t border-slate-900 w-4/5 mx-auto pt-2 min-h-[28px]">
+                {/* Espaço em branco para assinatura manual e carimbo */}
               </div>
-              <span className="text-slate-500 text-[11px]">Direção Escolar • {escolaInfo.nome}</span>
+              <span className="font-bold text-slate-900 block text-xs">Direção Escolar</span>
+              <span className="text-slate-500 text-[11px] block">{escolaInfo.nome}</span>
             </div>
 
             <div>
-              <div className="border-t border-slate-900 w-4/5 mx-auto pt-1.5 font-bold text-slate-900">
-                {escolaInfo.pedagoga}
+              <div className="border-t border-slate-900 w-4/5 mx-auto pt-2 min-h-[28px]">
+                {/* Espaço em branco para assinatura manual e carimbo */}
               </div>
-              <span className="text-slate-500 text-[11px]">Supervisão / Coordenação Pedagógica</span>
+              <span className="font-bold text-slate-900 block text-xs">Supervisão Pedagógica</span>
+              <span className="text-slate-500 text-[11px] block">Equipe Pedagógica CEMEI</span>
             </div>
           </div>
         </div>
