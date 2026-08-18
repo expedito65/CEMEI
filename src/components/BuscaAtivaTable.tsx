@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   RegistroBuscaAtiva, 
   Turma, 
@@ -24,9 +24,21 @@ import {
   ExternalLink,
   Copy,
   Check,
-  X
+  X,
+  UserCheck,
+  UserCircle2,
+  RefreshCw,
+  LogOut
 } from 'lucide-react';
-import { exportarParaGooglePlanilhas, ExportResult } from '../services/googleSheetsService';
+import { 
+  exportarParaGooglePlanilhas, 
+  ExportResult, 
+  selectGoogleAccount, 
+  initGoogleAuth, 
+  logoutGoogle,
+  auth
+} from '../services/googleSheetsService';
+import { User } from 'firebase/auth';
 
 interface BuscaAtivaTableProps {
   registros: RegistroBuscaAtiva[];
@@ -52,9 +64,40 @@ export const BuscaAtivaTable: React.FC<BuscaAtivaTableProps> = ({
   const [dataFim, setDataFim] = useState('');
   const [viewMode, setViewMode] = useState<'tabela' | 'cards'>('tabela');
   const [isExportingSheets, setIsExportingSheets] = useState(false);
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
   const [exportSuccessResult, setExportSuccessResult] = useState<ExportResult | null>(null);
   const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
   const [copiadoLink, setCopiadoLink] = useState(false);
+  const [googleUser, setGoogleUser] = useState<User | null>(auth.currentUser);
+
+  // Monitorar autenticação do Google
+  useEffect(() => {
+    const unsubscribe = initGoogleAuth((user) => {
+      setGoogleUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Trocar / Escolher conta do Google
+  const handleEscolherContaGoogle = async () => {
+    try {
+      setIsSwitchingAccount(true);
+      const res = await selectGoogleAccount();
+      setGoogleUser(res.user);
+    } catch (err: any) {
+      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+        console.error('Erro ao alternar conta Google:', err);
+        alert('Não foi possível alterar a conta do Google.');
+      }
+    } finally {
+      setIsSwitchingAccount(false);
+    }
+  };
+
+  const handleLogoutGoogle = async () => {
+    await logoutGoogle();
+    setGoogleUser(null);
+  };
 
   // Filtragem dos registros
   const registrosFiltrados = useMemo(() => {
@@ -294,17 +337,56 @@ export const BuscaAtivaTable: React.FC<BuscaAtivaTableProps> = ({
               </button>
             </div>
 
+            {/* Conta Google Conectada / Selecionador de Conta */}
+            {googleUser ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
+                {googleUser.photoURL ? (
+                  <img
+                    src={googleUser.photoURL}
+                    alt={googleUser.displayName || 'Google User'}
+                    className="w-4 h-4 rounded-full"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-bold">
+                    {googleUser.email?.charAt(0).toUpperCase() || 'G'}
+                  </div>
+                )}
+                <span className="font-medium truncate max-w-[130px] sm:max-w-[180px]" title={googleUser.email || ''}>
+                  {googleUser.email}
+                </span>
+                <button
+                  onClick={handleEscolherContaGoogle}
+                  disabled={isSwitchingAccount}
+                  className="text-blue-600 hover:text-blue-800 text-[11px] font-semibold underline ml-1 cursor-pointer disabled:opacity-50"
+                  title="Trocar e escolher outra conta do Google para o Drive"
+                >
+                  {isSwitchingAccount ? 'Alterando...' : 'Trocar conta'}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleEscolherContaGoogle}
+                disabled={isSwitchingAccount}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-600 hover:text-slate-900 transition-colors cursor-pointer disabled:opacity-50"
+                title="Escolher qual conta do Google utilizar para o Google Drive"
+              >
+                <UserCircle2 className="w-4 h-4 text-slate-500" />
+                <span>{isSwitchingAccount ? 'Conectando...' : 'Escolher Conta Google'}</span>
+              </button>
+            )}
+
             <button
               id="btn-export-google-sheets"
               onClick={handleExportGoogleSheets}
               disabled={isExportingSheets}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-2xs transition-all disabled:opacity-50"
-              title="Criar e exportar os dados diretamente para uma nova Planilha do Google (Google Documents / Planilhas)"
+              title="Criar e exportar os dados diretamente para o Google Drive / Planilhas na conta selecionada"
             >
               {isExportingSheets ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Exportando para o Google...</span>
+                  <span>Salvando no Google Drive...</span>
                 </>
               ) : (
                 <>
@@ -744,6 +826,12 @@ export const BuscaAtivaTable: React.FC<BuscaAtivaTableProps> = ({
             </div>
 
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500 font-medium">Conta Google:</span>
+                <span className="text-blue-700 font-semibold truncate max-w-[260px]">
+                  {exportSuccessResult.userEmail || googleUser?.email || 'Conta Selecionada'}
+                </span>
+              </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500 font-medium">Nome da Planilha:</span>
                 <span className="text-slate-800 font-semibold truncate max-w-[260px]">

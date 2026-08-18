@@ -1,5 +1,12 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  User, 
+  signOut 
+} from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { RegistroBuscaAtiva } from '../types';
 
@@ -11,31 +18,32 @@ export const SCOPES = [
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-const provider = new GoogleAuthProvider();
-SCOPES.forEach(scope => provider.addScope(scope));
+// Configuração do Google Auth Provider com prompt de seleção de conta
+const createGoogleProvider = () => {
+  const p = new GoogleAuthProvider();
+  SCOPES.forEach(scope => p.addScope(scope));
+  // Força a exibição da tela de seleção de conta do Google
+  p.setCustomParameters({
+    prompt: 'select_account'
+  });
+  return p;
+};
 
 let cachedAccessToken: string | null = null;
 let isSigningIn = false;
 
 export const initGoogleAuth = (
-  onAuthSuccess?: (user: User, token: string) => void,
-  onAuthFailure?: () => void
+  onAuthChange: (user: User | null, token: string | null) => void
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
-    if (user && cachedAccessToken) {
-      if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-    } else {
-      if (!isSigningIn) {
-        cachedAccessToken = null;
-        if (onAuthFailure) onAuthFailure();
-      }
-    }
+    onAuthChange(user, cachedAccessToken);
   });
 };
 
 export const signInWithGoogle = async (): Promise<{ user: User; accessToken: string }> => {
   try {
     isSigningIn = true;
+    const provider = createGoogleProvider();
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
@@ -49,6 +57,13 @@ export const signInWithGoogle = async (): Promise<{ user: User; accessToken: str
   } finally {
     isSigningIn = false;
   }
+};
+
+export const selectGoogleAccount = async (): Promise<{ user: User; accessToken: string }> => {
+  // Limpa o token atual e força a seleção de conta
+  cachedAccessToken = null;
+  await signOut(auth);
+  return signInWithGoogle();
 };
 
 export const getCachedAccessToken = (): string | null => {
@@ -65,6 +80,7 @@ export interface ExportResult {
   spreadsheetUrl: string;
   title: string;
   totalRegistros: number;
+  userEmail?: string | null;
 }
 
 export const exportarParaGooglePlanilhas = async (
@@ -72,10 +88,12 @@ export const exportarParaGooglePlanilhas = async (
   tokenOpcional?: string
 ): Promise<ExportResult> => {
   let token = tokenOpcional || cachedAccessToken;
+  let currentUser = auth.currentUser;
   
-  if (!token) {
+  if (!token || !currentUser) {
     const authResult = await signInWithGoogle();
     token = authResult.accessToken;
+    currentUser = authResult.user;
   }
 
   const agora = new Date();
@@ -108,7 +126,11 @@ export const exportarParaGooglePlanilhas = async (
 
   if (!createResponse.ok) {
     const errJson = await createResponse.json().catch(() => ({}));
-    throw new Error(errJson.error?.message || 'Falha ao criar planilha no Google Drive/Docs.');
+    if (createResponse.status === 401 || createResponse.status === 403) {
+      // Token expirou ou inválido, tenta autenticar novamente
+      cachedAccessToken = null;
+    }
+    throw new Error(errJson.error?.message || 'Falha ao criar planilha no Google Drive. Verifique a conta conectada.');
   }
 
   const sheetData = await createResponse.json();
@@ -246,5 +268,6 @@ export const exportarParaGooglePlanilhas = async (
     spreadsheetUrl,
     title,
     totalRegistros: registros.length,
+    userEmail: currentUser?.email,
   };
 };
