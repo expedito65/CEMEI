@@ -891,6 +891,81 @@ export const BuscaAtivaTable: React.FC<BuscaAtivaTableProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Orientação de Permissão / Autorização do Google Drive */}
+      {exportErrorMessage && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-amber-200 space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Autorização do Google Necessária
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Permissão para salvar a planilha no Google Drive
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setExportErrorMessage(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-950 space-y-2.5 leading-relaxed">
+              <p className="font-semibold text-amber-900">
+                Para que a planilha seja criada diretamente na sua conta, siga estes 3 passos simples na janela do Google:
+              </p>
+              <ol className="list-decimal list-inside space-y-1.5 text-slate-700">
+                <li>Escolha ou faça login com sua conta do Google.</li>
+                <li>
+                  <strong className="text-slate-900">Importante:</strong> Marque a caixa de seleção permitindo <span className="underline font-semibold">criar, editar e acessar planilhas do Google Drive</span>.
+                </li>
+                <li>Clique em <strong className="text-slate-900">Continuar / Permitir</strong>.</li>
+              </ol>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <button
+                onClick={async () => {
+                  setExportErrorMessage(null);
+                  await handleExportGoogleSheets();
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all text-center"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Autorizar e Exportar Agora</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setExportErrorMessage(null);
+                  handleExportCSV();
+                }}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors"
+                title="Baixar arquivo em CSV offline"
+              >
+                <Download className="w-4 h-4 text-slate-600" />
+                <span>Baixar CSV</span>
+              </button>
+
+              <button
+                onClick={() => setExportErrorMessage(null)}
+                className="px-3 py-2.5 text-xs text-slate-500 hover:text-slate-800 font-medium rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

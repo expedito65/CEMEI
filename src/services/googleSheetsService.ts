@@ -18,13 +18,16 @@ export const SCOPES = [
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Configuração do Google Auth Provider com prompt de seleção de conta
-const createGoogleProvider = () => {
+// Configuração do Google Auth Provider com prompt de seleção de conta e consentimento explícito
+const createGoogleProvider = (forceConsent = true) => {
   const p = new GoogleAuthProvider();
   SCOPES.forEach(scope => p.addScope(scope));
-  // Força a exibição da tela de seleção de conta do Google
+  
+  // Força a tela de seleção de contas e o consentimento explícito das permissões solicitadas
   p.setCustomParameters({
-    prompt: 'select_account'
+    prompt: forceConsent ? 'consent select_account' : 'select_account',
+    include_granted_scopes: 'true',
+    access_type: 'offline'
   });
   return p;
 };
@@ -40,10 +43,10 @@ export const initGoogleAuth = (
   });
 };
 
-export const signInWithGoogle = async (): Promise<{ user: User; accessToken: string }> => {
+export const signInWithGoogle = async (forceConsent = true): Promise<{ user: User; accessToken: string }> => {
   try {
     isSigningIn = true;
-    const provider = createGoogleProvider();
+    const provider = createGoogleProvider(forceConsent);
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
@@ -60,10 +63,10 @@ export const signInWithGoogle = async (): Promise<{ user: User; accessToken: str
 };
 
 export const selectGoogleAccount = async (): Promise<{ user: User; accessToken: string }> => {
-  // Limpa o token atual e força a seleção de conta
+  // Limpa o token atual e força a seleção de conta com tela de consentimento
   cachedAccessToken = null;
   await signOut(auth);
-  return signInWithGoogle();
+  return signInWithGoogle(true);
 };
 
 export const getCachedAccessToken = (): string | null => {
@@ -91,7 +94,7 @@ export const exportarParaGooglePlanilhas = async (
   let currentUser = auth.currentUser;
   
   if (!token || !currentUser) {
-    const authResult = await signInWithGoogle();
+    const authResult = await signInWithGoogle(true);
     token = authResult.accessToken;
     currentUser = authResult.user;
   }
@@ -101,7 +104,7 @@ export const exportarParaGooglePlanilhas = async (
   const title = `Busca Ativa - CEMEI Maria de Lourdes (${dataHoraFormatada})`;
 
   // 1. Criar a planilha via Google Sheets API
-  const createResponse = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+  let createResponse = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -124,13 +127,50 @@ export const exportarParaGooglePlanilhas = async (
     }),
   });
 
+  // Se der erro de autenticação / permissão (401 ou 403), tenta pedir consentimento explícito
+  if (!createResponse.ok && (createResponse.status === 401 || createResponse.status === 403)) {
+    console.warn('Tentativa com token atual falhou. Solicitando autorização explícita do Google...');
+    cachedAccessToken = null;
+    const authResult = await signInWithGoogle(true);
+    token = authResult.accessToken;
+    currentUser = authResult.user;
+
+    createResponse = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        properties: {
+          title,
+        },
+        sheets: [
+          {
+            properties: {
+              title: 'Busca Ativa CEMEI',
+              gridProperties: {
+                frozenRowCount: 1,
+              },
+            },
+          },
+        ],
+      }),
+    });
+  }
+
   if (!createResponse.ok) {
     const errJson = await createResponse.json().catch(() => ({}));
-    if (createResponse.status === 401 || createResponse.status === 403) {
-      // Token expirou ou inválido, tenta autenticar novamente
+    const rawError = errJson.error?.message || '';
+    
+    if (createResponse.status === 403 || rawError.includes('insufficient') || rawError.includes('permission')) {
       cachedAccessToken = null;
+      throw new Error(
+        'Permissão não concedida no Google. Ao fazer login, certifique-se de MARCAR a caixa de seleção que autoriza o aplicativo a criar e gerenciar planilhas no Google Drive.'
+      );
     }
-    throw new Error(errJson.error?.message || 'Falha ao criar planilha no Google Drive. Verifique a conta conectada.');
+    
+    throw new Error(rawError || 'Falha ao criar planilha no Google Drive. Verifique as permissões da conta.');
   }
 
   const sheetData = await createResponse.json();
